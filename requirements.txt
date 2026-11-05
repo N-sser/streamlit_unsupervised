@@ -1,6 +1,7 @@
 streamlit
 pandas
-scikit-learn
+scikit-learn<1.6
+#scikit-learn
 scikit-learn-extra
 #scikit-learn-extra==0.2.0
 matplotlib
