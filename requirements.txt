@@ -1,7 +1,7 @@
 streamlit
 pandas
 scikit-learn
-scikit-learn-extra
+scikit-learn-extra==0.2.0
 matplotlib
-numpy
-joblib
+numpy<2
+#joblib
