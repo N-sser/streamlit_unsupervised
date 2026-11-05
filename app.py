@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.decomposition import PCA
 from model import *
 
 st.title("Unsupervised models")
@@ -23,7 +24,7 @@ if not features:
     st.stop()
 
 # Note: Modified call to include feature_drop column if needed, or default it
-X = preprocessing(df, features, 'CustomerID' if 'CustomerID' in df.columns else df.columns[0])
+X = preprocessing(df, features, df.columns[0])
 st.dataframe(X, width='content')
 
 st.subheader("Modeling")
@@ -59,11 +60,11 @@ if labels is not None:
     except Exception as e:
         st.warning(f"Could not calculate metrics: {e}")
 
-    st.subheader("Plotting of two variables")
-    plot_features = st.multiselect("Choose features to plot (2 max.)", X.columns.tolist())
+    st.subheader("Visualization")
+    plot_features = st.multiselect("Choose features to plot", X.columns.tolist(), default=X.columns.tolist()[:2])
 
     if len(plot_features) < 2:
-        st.info("Choose two features to begin plot")
+        st.info("Please choose at least two features to plot")
     elif len(plot_features) == 2:
         fig, ax = plt.subplots()
         scatter = ax.scatter(X[plot_features[0]], X[plot_features[1]], c=labels, cmap='viridis')
@@ -71,4 +72,12 @@ if labels is not None:
         ax.set_ylabel(plot_features[1])
         st.pyplot(fig)
     elif len(plot_features) > 2:
-        st.error("More than two features. Impossible to plot")
+        st.write("Applying PCA to reduce dimensions to 2D for visualization...")
+        pca = PCA(n_components=2)
+        X_reduced = pca.fit_transform(X[plot_features])
+        fig, ax = plt.subplots()
+        scatter = ax.scatter(X_reduced[:, 0], X_reduced[:, 1], c=labels, cmap='viridis')
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.set_title("PCA - Cluster Plot")
+        st.pyplot(fig)
