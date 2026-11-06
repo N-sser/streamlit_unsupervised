@@ -1,9 +1,9 @@
 streamlit
 pandas
-scikit-learn<1.6
-#scikit-learn
+scikit-learn
 scikit-learn-extra
-#scikit-learn-extra==0.2.0
 matplotlib
-numpy<2
+numpy
 #joblib
+# Add distutils core removed on python 3.12+
+setuptools
