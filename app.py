@@ -23,7 +23,6 @@ features = st.multiselect("Choose features set", df.columns.tolist())
 if not features:
     st.stop()
 
-# Note: Modified call to include feature_drop column if needed, or default it
 X = preprocessing(df, features, df.columns[0])
 st.dataframe(X, width='content')
 

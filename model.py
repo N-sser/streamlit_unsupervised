@@ -3,15 +3,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
-#!pip install scikit-learn-extra
 from sklearn_extra.cluster import KMedoids
 from sklearn.metrics import silhouette_score, davies_bouldin_score
 
 def preprocessing(df, features: list, feature_drop: str):
     df = df.drop(columns=feature_drop, axis=1)
     X = df[features].copy()
-    numerical = df.select_dtypes(include=['int64', 'float64']).columns
-    categorical = df.select_dtypes(include=['object']).columns
+    numerical = X.select_dtypes(include=['int64', 'float64']).columns
+    categorical = X.select_dtypes(include=['object']).columns
 
     ss = StandardScaler()
     X[numerical] = ss.fit_transform(X[numerical])
