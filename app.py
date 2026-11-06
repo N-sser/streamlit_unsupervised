@@ -5,30 +5,31 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from model import *
 
-st.title("Unsupervised models")
-
+st.title("Unsupervised models app")
 st.subheader("Dataframe")
 file = st.file_uploader("Upload CSV", type=["csv"])
-
+# Stop app if file it's not given
 if file is None:
     st.info("Upload a CSV file to begin")
     st.stop()
-
+# Read the file and display it
 df = pd.read_csv(file)
 st.dataframe(df, width='content')
-
+# Customize dataset for data engineer
 st.subheader("Preprocessing")
 features = st.multiselect("Choose features set", df.columns.tolist())
-
-if not features:
+# There's has to be atleast two features selected
+if len(features) < 2:
     st.stop()
+# Create scenario validated for modeling
+X = preprocessing(df, features)
 
-X = preprocessing(df, features, df.columns[0])
-st.dataframe(X, width='content')
-
+# Selection of 4 unsupervised models with custom hyperparameters
+# e.g N of clusters, metric, min_samples ,linkage, e.t.c
 st.subheader("Modeling")
 model = st.selectbox("Choose one", ["KMeans", "KMedoids", "DBSCAN", "Agglomerative"])
 
+# Init of 'y' prediction column to be later add to dataframe (before preprocessing)
 labels = None
 
 if model == "KMeans":
@@ -51,6 +52,11 @@ elif model == "Agglomerative":
     labels = hierarchicalClustering(X, k, linkage)
 
 if labels is not None:
+    # Show labels results
+    df['cluster'] = labels
+    st.subheader('Clustered Dataset')
+    st.dataframe(df, width='content')
+
     # Calculate metrics
     try:
         sil, dav = metrics(X, labels)
@@ -59,6 +65,7 @@ if labels is not None:
     except Exception as e:
         st.warning(f"Could not calculate metrics: {e}")
 
+    # Plotting of features and PCA for more than two variables for visualization 
     st.subheader("Visualization")
     plot_features = st.multiselect("Choose features to plot", X.columns.tolist(), default=X.columns.tolist()[:2])
 

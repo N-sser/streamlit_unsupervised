@@ -6,8 +6,8 @@ from sklearn.cluster import AgglomerativeClustering, DBSCAN, KMeans
 from sklearn_extra.cluster import KMedoids
 from sklearn.metrics import silhouette_score, davies_bouldin_score
 
-def preprocessing(df, features: list, feature_drop: str):
-    df = df.drop(columns=feature_drop, axis=1)
+def preprocessing(df, features: list):
+    #df = df.drop(columns=feature_drop, axis=1)
     X = df[features].copy()
     numerical = X.select_dtypes(include=['int64', 'float64']).columns
     categorical = X.select_dtypes(include=['object']).columns
@@ -25,7 +25,7 @@ def kmeans(X, n_clusters):
     return y_kmeans
 
 def kmedoids(X, n_clusters, metric):
-    kmedoids = KMedoids(n_clusters=n_clusters, metric=metric)
+    kmedoids = KMedoids(n_clusters=n_clusters, metric=metric, random_state=42)
     y_kmedoids = kmedoids.fit_predict(X)
     return y_kmedoids
 
