@@ -1,89 +1,98 @@
 import streamlit as st
-import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.decomposition import PCA
 from model import *
 
-st.title("Unsupervised models app")
-st.subheader("Dataframe")
-file = st.file_uploader("Upload CSV", type=["csv"])
-# Stop app if file it's not given
+st.title("Unsupervised Models App")
+
+# 1. Upload CSV & Preview
+file = st.file_uploader("Upload CSV file", type=["csv"])
 if file is None:
-    st.info("Upload a CSV file to begin")
+    st.info("Please upload a CSV file to start.")
     st.stop()
-# Read the file and display it
+
 df = pd.read_csv(file)
-st.dataframe(df, width='content')
-# Customize dataset for data engineer
-st.subheader("Preprocessing")
-features = st.multiselect("Choose features set", df.columns.tolist())
-# There's has to be atleast two features selected
+st.subheader("Dataset Preview")
+st.dataframe(df.head())
+
+# 2. Feature Selection
+features = st.multiselect("Select features for modeling", df.columns.tolist(), default=df.columns.tolist()[1:])
 if len(features) < 2:
+    st.warning("Please select at least 2 features.")
     st.stop()
-# Create scenario validated for modeling
-X = preprocessing(df, features)
 
-# Selection of 4 unsupervised models with custom hyperparameters
-# e.g N of clusters, metric, min_samples ,linkage, e.t.c
-st.subheader("Modeling")
-model = st.selectbox("Choose one", ["KMeans", "KMedoids", "DBSCAN", "Agglomerative"])
+# Base Preprocessing - using (df, features, dummy_drop_col) or just passing CustomerID as a drop if available
+drop_candidate = 'CustomerID' if 'CustomerID' in df.columns and 'CustomerID' not in features else df.columns[0]
+X_base = preprocessing(df, features)
 
-# Init of 'y' prediction column to be later add to dataframe (before preprocessing)
+# Feature Selection Mode (Manual vs PCA Reduction)
+st.subheader("Feature Selection Mode")
+mode = st.radio("Choose Mode", ["Manual Selection", "PCA Reduction"])
+
+if mode == "Manual Selection":
+    X = X_base.copy()
+else:
+    max_components = min(X_base.shape[0], X_base.shape[1])
+    if max_components < 2:
+        st.error("Not enough dimensions to perform PCA (minimum 2 required).")
+        st.stop()
+    n_components = st.slider("PCA Components", 2, max_components, 2)
+    pca_model = PCA(n_components=n_components)
+    X = pd.DataFrame(pca_model.fit_transform(X_base), columns=[f"PC{i+1}" for i in range(n_components)], index=X_base.index)
+    st.write(f"PCA active. Retained variance: {pca_model.explained_variance_ratio_.sum():.2%}")
+
+# 3. Model Selection & Hyperparameters
+st.subheader("Clustering Configuration")
+model_name = st.selectbox("Select Algorithm", ["K-Means", "K-Medoids", "DBSCAN", "Hierarchical"])
+
 labels = None
-
-if model == "KMeans":
-    k = st.slider("Value of K (n of clusters)", 2, 10, value=6)
+if model_name == "K-Means":
+    k = st.slider("Number of clusters (k)", 2, 10, 6)
     labels = kmeans(X, k)
 
-elif model == "KMedoids":
-    k = st.slider("Value of K (n of clusters)", 2, 10, value=6)
-    metric = st.selectbox("Choose metric", ["manhattan", "euclidean"])
+elif model_name == "K-Medoids":
+    k = st.slider("Number of clusters (k)", 2, 10, 6)
+    metric = st.selectbox("Distance Metric", ["manhattan", "euclidean"])
     labels = kmedoids(X, k, metric)
 
-elif model == "DBSCAN":
-    min_samples = st.slider("Select min samples", 1, 100, value=2)
-    eps = st.number_input("Epsilon (e.g 0.5)", min_value=0.01, max_value=100.0, value=0.1)
+elif model_name == "DBSCAN":
+    eps = st.number_input("Epsilon (eps)", 0.01, 10.0, 0.5)
+    min_samples = st.slider("Minimum Samples", 1, 50, 5)
     labels = dbscan(X, eps, min_samples)
 
-elif model == "Agglomerative":
-    k = st.slider("Value of K (n of clusters)", 2, 10, value=6)
-    linkage = st.selectbox("Choose one linkage", ["ward", "complete", "average", "single"])
+elif model_name == "Hierarchical":
+    k = st.slider("Number of clusters (k)", 2, 10, 6)
+    linkage = st.selectbox("Linkage Criterion", ["ward", "complete", "average", "single"])
     labels = hierarchicalClustering(X, k, linkage)
 
+# 4. Display Clustered Dataset & Metrics
 if labels is not None:
-    # Show labels results
-    df['cluster'] = labels
-    st.subheader('Clustered Dataset')
-    st.dataframe(df, width='content')
+    df['Cluster'] = labels
+    st.subheader("Clustered Dataset")
+    st.dataframe(df)
 
-    # Calculate metrics
+    # Metrics
     try:
-        sil, dav = metrics(X, labels)
-        st.metric("Silhouette Score", f"{sil:.3f}")
-        st.metric("Davies-Bouldin Index", f"{dav:.3f}")
+        sil, db = metrics(X, labels)
+        col1, col2 = st.columns(2)
+        col1.metric("Silhouette Score", f"{sil:.4f}")
+        col2.metric("Davies-Bouldin Index", f"{db:.4f}")
     except Exception as e:
-        st.warning(f"Could not calculate metrics: {e}")
+        st.error(f"Could not calculate metrics: {e}")
 
-    # Plotting of features and PCA for more than two variables for visualization 
-    st.subheader("Visualization")
-    plot_features = st.multiselect("Choose features to plot", X.columns.tolist(), default=X.columns.tolist()[:2])
-
-    if len(plot_features) < 2:
-        st.info("Please choose at least two features to plot")
-    elif len(plot_features) == 2:
-        fig, ax = plt.subplots()
-        scatter = ax.scatter(X[plot_features[0]], X[plot_features[1]], c=labels, cmap='viridis')
-        ax.set_xlabel(plot_features[0])
-        ax.set_ylabel(plot_features[1])
-        st.pyplot(fig)
-    elif len(plot_features) > 2:
-        st.write("Applying PCA to reduce dimensions to 2D for visualization...")
-        pca = PCA(n_components=2)
-        X_reduced = pca.fit_transform(X[plot_features])
-        fig, ax = plt.subplots()
-        scatter = ax.scatter(X_reduced[:, 0], X_reduced[:, 1], c=labels, cmap='viridis')
-        ax.set_xlabel("PC1")
-        ax.set_ylabel("PC2")
-        ax.set_title("PCA - Cluster Plot")
-        st.pyplot(fig)
+    # 5. Visualization
+    st.subheader("Cluster Visualization")
+    fig, ax = plt.subplots()
+    if X.shape[1] == 2:
+        ax.scatter(X.iloc[:, 0], X.iloc[:, 1], c=labels, cmap='viridis', edgecolors='k')
+        ax.set_xlabel(X.columns[0])
+        ax.set_ylabel(X.columns[1])
+    else:
+        # Automatically apply PCA to reduce dimensions to 2D for visualization if > 2 features
+        pca_coords = PCA(n_components=2).fit_transform(X)
+        ax.scatter(pca_coords[:, 0], pca_coords[:, 1], c=labels, cmap='viridis', edgecolors='k')
+        ax.set_xlabel("PC 1")
+        ax.set_ylabel("PC 2")
+        ax.set_title("PCA Projected Cluster Space")
+    st.pyplot(fig)
